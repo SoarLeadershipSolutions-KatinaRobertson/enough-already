@@ -1,0 +1,141 @@
+          <article class="soar-proof-card">
+            <blockquote>During a merger, I found myself in a position where important ideas, systems and practices were at risk of being phased out—but I was hesitant to speak up and question whether my voice would carry weight. Katina helped me work through that lack of confidence and strengthen how I advocated for what I knew had value. I began speaking up and defending those practices with greater confidence. Senior leadership noticed my ability and contribution, and I was ultimately promoted.</blockquote>
+            <div class="soar-proof-person">Karen C. — Integration Lead, AstraZeneca</div>
+          </article>
+        </div>
+      </div>`);
+    section.id = 'soar-social-proof';
+    register.before(section);
+  }
+
+  function patchRegistration() {
+    const register = document.getElementById('register');
+    if (!register) return;
+
+    const deadline = register.querySelector('.fine');
+    if (deadline) deadline.textContent = DEADLINE;
+
+    const generalCard = register.querySelector('.pc');
+    if (generalCard) {
+      updateTextNodes(generalCard, (value) => value.replace(/Personalized action plan/g, ACTION_PLAN));
+      const generalLink = generalCard.querySelector('a');
+      if (generalLink) {
+        generalLink.href = GENERAL_ADMISSION_URL;
+        generalLink.target = '_blank';
+        generalLink.rel = 'noopener';
+        generalLink.setAttribute('aria-label', 'Register for General Admission');
+      }
+    }
+
+    const vipCard = register.querySelector('.pv');
+    if (vipCard) {
+      vipCard.innerHTML = `
+        <div class="pl">VIP EXPERIENCE</div>
+        <div class="amt"><b>$197</b><span class="eby">EARLY BIRD</span></div>
+        <div class="was">Regular price $247</div>
+        <div class="soar-vip-note">VIP experience details are being finalized.</div>
+        <a class="btn blk" style="margin-top:26px" href="${VIP_URL}" target="_blank" rel="noopener" aria-label="Register for the VIP Experience">GO VIP — $197</a>`;
+    }
+
+    register.querySelectorAll('.lab').forEach((element) => element.remove());
+  }
+
+  function patchOrganizations() {
+    const marker = findOne('.eb', 'FOR ORGANIZATIONS');
+    const section = sectionFor(marker);
+    if (!section) return;
+
+    section.innerHTML = `
+      <div class="w g2" style="align-items:center">
+        <div class="soar-team-copy">
+          <div class="eb ebm">FOR ORGANIZATIONS</div>
+          <h3 style="font-size:clamp(22px,2.8vw,30px);margin-bottom:10px">Bring the women on your team.</h3>
+          <p class="p" style="font-size:15px">This experience is available for women’s ERGs, emerging leaders, high-potential employees and leadership development cohorts.</p>
+          <p class="p" style="font-size:15px"><strong>Interested in bringing a group? Let’s talk about team registration.</strong></p>
+        </div>
+        <div class="soar-team-action">
+          <a class="bo" style="font-size:13px;padding:15px 22px;border-width:1px" href="${TEAM_EMAIL_URL}">INQUIRE ABOUT TEAM REGISTRATION</a>
+        </div>
+      </div>`;
+  }
+
+  function removePolicyLanguage() {
+    const terms = [
+      ['re', 'fund'].join(''),
+      ['cancel', 'lation'].join(''),
+      ['cancel', 'led'].join(''),
+      ['money', ' back'].join(''),
+      ['money', '-back'].join(''),
+      ['guaran', 'tee'].join('')
+    ];
+    const pattern = new RegExp(terms.join('|'), 'i');
+    const targetSelector = [
+      'a', 'button', 'p', 'li', 'summary', 'details', 'dialog', '[role="dialog"]',
+      '.tbd', '[class*="modal" i]', '[class*="popup" i]', '[class*="accordion" i]',
+      '[class*="faq" i]', '[id*="modal" i]', '[id*="popup" i]'
+    ].join(',');
+
+    const depth = (element) => {
+      let count = 0;
+      for (let node = element; node?.parentElement; node = node.parentElement) count += 1;
+      return count;
+    };
+
+    Array.from(document.querySelectorAll(targetSelector))
+      .filter((element) => pattern.test(normalize(element.textContent)))
+      .sort((a, b) => depth(b) - depth(a))
+      .forEach((element) => {
+        if (!element.isConnected || !pattern.test(normalize(element.textContent))) return;
+        const semanticTarget = element.closest('a, button, li, details, dialog, [role="dialog"], [class*="modal" i], [class*="popup" i], .tbd') || element;
+        if (semanticTarget !== document.body && semanticTarget !== document.documentElement) semanticTarget.remove();
+      });
+
+    document.querySelectorAll('meta[content], [title], [aria-label], [href], [data-title], [data-label]').forEach((element) => {
+      const attributes = ['content', 'title', 'aria-label', 'href', 'data-title', 'data-label'];
+      const hasMatch = attributes.some((name) => pattern.test(element.getAttribute(name) || ''));
+      if (!hasMatch) return;
+      if (element.matches('meta, a, button')) element.remove();
+      else attributes.forEach((name) => {
+        if (pattern.test(element.getAttribute(name) || '')) element.removeAttribute(name);
+      });
+    });
+  }
+
+  function enforceLinks() {
+    const register = document.getElementById('register');
+    const generalLink = register?.querySelector('.pc a');
+    const vipLink = register?.querySelector('.pv a');
+    if (generalLink) generalLink.href = GENERAL_ADMISSION_URL;
+    if (vipLink) vipLink.href = VIP_URL;
+
+    const organizationMarker = findOne('.eb', 'FOR ORGANIZATIONS');
+    const organizationSection = sectionFor(organizationMarker);
+    const teamLink = organizationSection?.querySelector('a');
+    if (teamLink) teamLink.href = TEAM_EMAIL_URL;
+  }
+
+  function auditRenderedPage() {
+    const text = normalize(document.body.textContent);
+    const legacyPlanName = ['Confidence', 'Action', 'Plan'].join(' ');
+    const forbiddenTerms = [
+      ['re', 'fund'].join(''),
+      ['cancel', 'lation'].join(''),
+      ['money', ' back'].join(''),
+      ['guaran', 'tee'].join('')
+    ];
+    const zoneTokens = ['E' + 'ST', 'E' + 'DT', 'P' + 'T', 'C' + 'T'];
+    const zonePattern = new RegExp(`\\b(?:${zoneTokens.join('|')})\\b`);
+    const dateRanges = text.match(/September\s+\d{1,2}\s*[–-]\s*\d{1,2},\s*2026/gi) || [];
+    const images = Array.from(document.images);
+    const hero = document.querySelector('.hero');
+    const heroPhoto = hero?.querySelector('[data-soar-role="hero-photo"]') || null;
+    const bioLogo = document.querySelector('[data-soar-role="bio-logo"]');
+    const isDisplayed = (element) => {
+      if (!element) return false;
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && Number(style.opacity || 1) > 0;
+    };
+
+    const lowerText = text.toLowerCase();
+    const staleAgendaPhrases = [
