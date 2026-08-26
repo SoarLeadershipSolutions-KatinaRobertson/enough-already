@@ -106,7 +106,7 @@
 
       async function boot() {
         const original = await fetchOriginal();
-        const patchTag = '<link rel="stylesheet" href="./soar-brand.css?v=2026-08-26-brand-assets-r2" data-soar-brand-styles><script src="./content-patch-loader.js?v=2026-08-26-brand-assets-r2" data-soar-content-patch><\/script>';
+        const patchTag = '<link rel="stylesheet" href="./soar-brand.css?v=2026-08-26-restored-r1" data-soar-brand-styles><script src="./content-patch-loader.js?v=2026-08-26-restored-r1" data-soar-content-patch><\/script>';
         const patchedSource = /<\/head>/i.test(original)
           ? original.replace(/<\/head>/i, `${patchTag}</head>`)
           : original.replace(/<body/i, `${patchTag}<body`);
