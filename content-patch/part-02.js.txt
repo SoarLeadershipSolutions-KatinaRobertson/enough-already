@@ -85,8 +85,8 @@
     image.setAttribute('data-soar-role', 'hero-photo');
     image.src = HERO_IMAGE_PATH;
     image.alt = 'Katina Christmas Robertson, leadership development expert and executive coach';
-    image.width = 640;
-    image.height = 800;
+    image.width = 480;
+    image.height = 600;
     image.loading = 'eager';
     image.decoding = 'async';
     image.fetchPriority = 'high';
@@ -126,8 +126,8 @@
     image.setAttribute('data-soar-role', 'bio-logo');
     image.src = BIO_LOGO_PATH;
     image.alt = 'SOAR Leadership Solutions — Empowering Leaders. Elevating Teams. Driving Results.';
-    image.width = 600;
-    image.height = 450;
+    image.width = 430;
+    image.height = 335;
     image.loading = 'eager';
     image.decoding = 'async';
     lockup.appendChild(image);
