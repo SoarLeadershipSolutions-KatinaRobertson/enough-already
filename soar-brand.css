@@ -9,11 +9,16 @@
   --soar-ink: #12324c;
   --soar-cream: #fbf8f3;
   --soar-soft-blue: #eef9fb;
+  --soar-surface: #f7fcfd;
+  --soar-cyan-soft: #8ddce8;
+  --soar-cyan-light: #bceef4;
+  --soar-orange-light: #ffab58;
+  --soar-navy-mid: #0b527d;
   --soar-white: #ffffff;
   --bl: var(--soar-navy);
   --nv: var(--soar-navy-deep);
   --or: var(--soar-orange);
-  --cy: #8ddce8;
+  --cy: var(--soar-cyan-soft);
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { max-width: 100%; }
@@ -24,7 +29,7 @@ img, svg, video, canvas { max-width: 100%; }
   background:
     radial-gradient(circle at 86% 12%, rgba(5,166,199,.18), transparent 29%),
     radial-gradient(circle at 76% 86%, rgba(73,185,143,.11), transparent 30%),
-    linear-gradient(135deg, var(--soar-navy-deep) 0%, var(--soar-navy) 64%, #0b4f79 100%) !important;
+    linear-gradient(135deg, var(--soar-navy-deep) 0%, var(--soar-navy) 64%, var(--soar-navy-mid) 100%) !important;
 }
 .hero::after {
   content: "";
@@ -42,12 +47,12 @@ img, svg, video, canvas { max-width: 100%; }
   box-shadow: 0 12px 28px rgba(0,0,0,.18);
 }
 .hero a.btn:hover, .hero a.btn:focus-visible {
-  background: #ffab58 !important;
-  border-color: #ffab58 !important;
+  background: var(--soar-orange-light) !important;
+  border-color: var(--soar-orange-light) !important;
   transform: translateY(-1px);
 }
 .eb, .badge, .when { color: var(--soar-blue); }
-.hero .eb, .hero .badge, .hero .when { color: #bceef4; }
+.hero .eb, .hero .badge, .hero .when { color: var(--soar-cyan-light); }
 a.btn, a.bo {
   overflow-wrap: anywhere;
   transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease, border-color .2s ease;
@@ -82,7 +87,7 @@ a.btn:hover, a.btn:focus-visible, a.bo:hover, a.bo:focus-visible {
   margin: 0 auto;
   padding: 18px 18px 0;
   overflow: hidden;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fcfd 100%);
+  background: linear-gradient(180deg, #ffffff 0%, var(--soar-surface) 100%);
   border: 1px solid rgba(141,220,232,.68);
   border-radius: 28px;
   box-shadow: 0 28px 64px rgba(0,0,0,.27);
@@ -134,7 +139,7 @@ a.btn:hover, a.btn:focus-visible, a.bo:hover, a.bo:focus-visible {
   width: min(100%, 380px);
   margin-top: 28px;
   padding: 14px 18px;
-  background: linear-gradient(135deg, var(--soar-navy-deep), #0b527d);
+  background: var(--soar-navy);
   border: 1px solid rgba(5,166,199,.5);
   border-radius: 16px;
   box-shadow: 0 16px 36px rgba(8,47,80,.16);
@@ -254,7 +259,7 @@ a.btn:hover, a.btn:focus-visible, a.bo:hover, a.bo:focus-visible {
 }
 .soar-inline-proof__result {
   margin-bottom: 20px;
-  color: #bceef4;
+  color: var(--soar-cyan-light);
   font: 800 13px/1.4 Manrope, Arial, sans-serif;
   letter-spacing: .09em;
   text-transform: uppercase;
@@ -267,7 +272,7 @@ a.btn:hover, a.btn:focus-visible, a.bo:hover, a.bo:focus-visible {
   line-height: 1.55;
 }
 .soar-inline-proof .soar-proof-person {
-  color: #bceef4;
+  color: var(--soar-cyan-light);
   border-color: rgba(255,255,255,.25);
 }
 .soar-vip-note {
