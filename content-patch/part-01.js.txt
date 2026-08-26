@@ -9,8 +9,8 @@
   const EVENT_TIME = '10:00 AM – 1:00 PM ET';
   const DEADLINE = 'Early-bird pricing ends September 4.';
   const ACTION_PLAN = 'Ready Now Action Plan™';
-  const HERO_IMAGE_PATH = './assets/katina-hero.webp';
-  const BIO_LOGO_PATH = './assets/soar-leadership-solutions-logo.webp';
+  const HERO_IMAGE_PATH = './assets/katina-hero.webp?v=2026-08-26-r2';
+  const BIO_LOGO_PATH = './assets/soar-leadership-solutions-logo.webp?v=2026-08-26-r2';
 
   const runtimeErrors = [];
   window.addEventListener('error', (event) => {
@@ -150,7 +150,7 @@
     if (document.querySelector('[data-soar-brand-styles]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = './soar-brand.css?v=2026-08-26-brand-assets';
+    link.href = './soar-brand.css?v=2026-08-26-brand-assets-r2';
     link.setAttribute('data-soar-brand-styles', '');
     document.head.appendChild(link);
   }
