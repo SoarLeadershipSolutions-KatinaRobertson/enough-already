@@ -82,6 +82,17 @@
   });
   observer.observe(document, { childList: true, subtree: true });
 
+  let policyGuardQueued = false;
+  const policyGuard = new MutationObserver((mutations) => {
+    if (policyGuardQueued || !mutations.some((mutation) => mutation.addedNodes.length > 0)) return;
+    policyGuardQueued = true;
+    window.requestAnimationFrame(() => {
+      policyGuardQueued = false;
+      removePolicyLanguage();
+    });
+  });
+  policyGuard.observe(document.documentElement, { childList: true, subtree: true });
+
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', applyPatch, { once: true });
   } else {
