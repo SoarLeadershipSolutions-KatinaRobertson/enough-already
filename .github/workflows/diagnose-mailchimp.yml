@@ -20,47 +20,66 @@ jobs:
           SITE='https://soarleadershipsolutions-katinarobertson.github.io/enough-already/'
           MC='https://chimpstatic.com/mcjs-connected/js/users/34174a1bd11cad56c974a1920/847bde1919ae7937546a3d4d7.js'
           FORM_ASSET='https://form-assets.mailchimp.com/snippet/account/192635718?site=847bde1919ae7937546a3d4d7'
+          CONFIG='https://form-assets.mailchimp.com/snippet/config/192635718?site=847bde1919ae7937546a3d4d7'
 
           echo '=== LIVE PAGE HEADERS ==='
           curl -sSIL "$SITE" | sed -n '1,80p'
 
-          echo '=== CONNECTED-SITE SCRIPT: HEAD ==='
-          curl -sSIL "$MC" | sed -n '1,100p' || true
-
-          echo '=== CONNECTED-SITE SCRIPT: GET ==='
+          echo '=== CONNECTED-SITE SCRIPT ==='
           curl -sSL -D /tmp/mc.headers "$MC" -o /tmp/mc.js
           wc -c /tmp/mc.js
           sed -n '1,80p' /tmp/mc.headers
           grep -Eoi '.{0,100}(amped_forms|uid|site_unique_id|form-assets).{0,180}' /tmp/mc.js | head -40 || true
 
-          echo '=== FORM-ASSET SCRIPT: HEAD ==='
-          curl -sSIL "$FORM_ASSET" | sed -n '1,100p' || true
-
-          echo '=== FORM-ASSET SCRIPT: GET ==='
+          echo '=== FORM-ASSET SCRIPT ==='
           curl -sSL -D /tmp/form.headers "$FORM_ASSET" -o /tmp/form.js
           wc -c /tmp/form.js
           sed -n '1,100p' /tmp/form.headers
 
-          echo '=== FORM-ASSET SCRIPT FIRST 12000 CHARS ==='
-          head -c 12000 /tmp/form.js
-          echo
-
-          echo '=== FORM-ASSET URLS / KEYWORDS ==='
-          grep -Eo 'https?://[^"[:space:]]+' /tmp/form.js | sort -u | head -100 || true
-          grep -Eoi '.{0,150}(list-manage|subscribe|popup|form|audience|campaign|published|draft|site|trigger|modal).{0,220}' /tmp/form.js | head -160 || true
+          echo '=== MAILCHIMP CONFIG ==='
+          curl -sSL -D /tmp/config.headers "$CONFIG" -o /tmp/config.json
+          wc -c /tmp/config.json
+          sed -n '1,100p' /tmp/config.headers
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('/tmp/config.json')
+          text=p.read_text(errors='replace')
+          print(text[:30000])
+          try:
+              data=json.loads(text)
+              print('\n=== CONFIG SUMMARY ===')
+              if isinstance(data, dict):
+                  print('top_keys=', sorted(data.keys()))
+                  for key in ('experiences','campaigns','variations','account','config'):
+                      value=data.get(key)
+                      if value is not None:
+                          print(key, type(value).__name__, len(value) if hasattr(value,'__len__') else '')
+          except Exception as exc:
+              print('CONFIG JSON PARSE ERROR', repr(exc))
+          PY
 
       - name: Test the deployed page in Chrome
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p /tmp/mctest
+          cd /tmp/mctest
+          npm init -y >/dev/null 2>&1
           npm --silent install puppeteer-core@24
-          cat > /tmp/test-mailchimp.mjs <<'NODE'
-          import puppeteer from 'puppeteer-core';
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser || true)"
+          echo "CHROME=$CHROME"
+          test -n "$CHROME"
 
+          cat > test-mailchimp.mjs <<'NODE'
+          import puppeteer from 'puppeteer-core';
+          import { execSync } from 'node:child_process';
+
+          const chrome = execSync('command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser', { shell: '/bin/bash' }).toString().trim();
           const browser = await puppeteer.launch({
-            executablePath: '/usr/bin/google-chrome',
+            executablePath: chrome,
             headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-features=BlockThirdPartyCookies']
           });
           const page = await browser.newPage();
           await page.setViewport({ width: 1365, height: 900 });
@@ -70,59 +89,60 @@ jobs:
           page.on('requestfailed', (req) => console.log('REQUEST FAILED', req.url(), req.failure()?.errorText));
           page.on('response', (res) => {
             const url = res.url();
-            if (/mailchimp|chimpstatic|form-assets|list-manage/i.test(url)) {
+            if (/mailchimp|chimpstatic|form-assets|list-manage|mcf-|intuit/i.test(url)) {
               console.log('MAILCHIMP RESPONSE', res.status(), url);
             }
           });
 
-          const url = 'https://soarleadershipsolutions-katinarobertson.github.io/enough-already/?diagnostic=1';
+          const url = 'https://soarleadershipsolutions-katinarobertson.github.io/enough-already/';
           console.log('NAVIGATING', url);
-          await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-          await new Promise((resolve) => setTimeout(resolve, 6000));
+          await page.goto(url, { waitUntil: 'networkidle2', timeout: 90000 });
+          await new Promise((resolve) => setTimeout(resolve, 8000));
 
-          const before = await page.evaluate(() => ({
-            title: document.title,
-            mcSite: Boolean(window.$mcSite),
-            ampedForms: Boolean(window.$mcSite?.amped_forms),
-            registerButtons: document.querySelectorAll('.js-register').length,
-            scripts: [...document.scripts].map((s) => s.src).filter((src) => /mailchimp|chimpstatic|form-assets/i.test(src)),
-            bodyText: document.body.innerText.slice(0, 1000)
-          }));
-          console.log('BEFORE CLICK', JSON.stringify(before, null, 2));
+          const inspect = async (label) => {
+            const result = await page.evaluate(() => {
+              const candidates = [...document.querySelectorAll('*')]
+                .filter((el) => {
+                  const marker = `${el.id || ''} ${typeof el.className === 'string' ? el.className : ''}`;
+                  return /(mailchimp|mcforms|amped|popup|modal)/i.test(marker);
+                })
+                .slice(0, 100)
+                .map((el) => ({
+                  tag: el.tagName,
+                  id: el.id,
+                  className: typeof el.className === 'string' ? el.className : '',
+                  display: getComputedStyle(el).display,
+                  visibility: getComputedStyle(el).visibility,
+                  opacity: getComputedStyle(el).opacity,
+                  text: (el.innerText || '').trim().slice(0, 300),
+                  html: el.outerHTML.slice(0, 600)
+                }));
 
+              return {
+                title: document.title,
+                mcSite: Boolean(window.$mcSite),
+                ampedForms: Boolean(window.$mcSite?.amped_forms),
+                ampedInstalled: window.$mcSite?.amped_forms?.installed,
+                settings: window.mailchimpFormsSettings || null,
+                custom: window.mailchimpFormsCustom || null,
+                registerButtons: document.querySelectorAll('.js-register').length,
+                cookies: document.cookie,
+                localStorageKeys: Object.keys(localStorage),
+                status: document.getElementById('registration-status')?.innerText || '',
+                scripts: [...document.scripts].map((s) => s.src).filter((src) => /mailchimp|chimpstatic|form-assets|mcf-/i.test(src)),
+                candidates,
+                bodyChildren: [...document.body.children].slice(-15).map((el) => el.outerHTML.slice(0, 900))
+              };
+            });
+            console.log(label, JSON.stringify(result, null, 2));
+          };
+
+          await inspect('AFTER LOAD');
           await page.click('.js-register');
-          await new Promise((resolve) => setTimeout(resolve, 10000));
-
-          const after = await page.evaluate(() => {
-            const selectors = [
-              '[id^="PopupSignupForm_"]', '[id*="PopupSignupForm"]', '.mc-modal',
-              '.mc-layout__modalContent', '[data-dojo-attach-point="modalContent"]',
-              'iframe[src*="mailchimp"]', 'iframe[src*="list-manage"]',
-              'iframe[title*="Mailchimp" i]', '[data-testid*="popup" i]',
-              '[class*="popup" i]', '[class*="modal" i]'
-            ];
-            const matches = selectors.flatMap((selector) => [...document.querySelectorAll(selector)].map((el) => ({
-              selector,
-              tag: el.tagName,
-              id: el.id,
-              className: typeof el.className === 'string' ? el.className : '',
-              hidden: el.hidden,
-              display: getComputedStyle(el).display,
-              visibility: getComputedStyle(el).visibility,
-              text: (el.innerText || '').slice(0, 300)
-            })));
-            return {
-              mcSite: Boolean(window.$mcSite),
-              ampedForms: Boolean(window.$mcSite?.amped_forms),
-              ampedInstalled: window.$mcSite?.amped_forms?.installed,
-              cookies: document.cookie,
-              status: document.getElementById('registration-status')?.innerText,
-              matches,
-              scripts: [...document.scripts].map((s) => s.src).filter((src) => /mailchimp|chimpstatic|form-assets/i.test(src))
-            };
-          });
-          console.log('AFTER CLICK', JSON.stringify(after, null, 2));
-          await page.screenshot({ path: '/tmp/mailchimp-page.png', fullPage: true });
+          await new Promise((resolve) => setTimeout(resolve, 12000));
+          await inspect('AFTER CLICK');
+          await page.screenshot({ path: 'mailchimp-page.png', fullPage: true });
           await browser.close();
           NODE
-          node /tmp/test-mailchimp.mjs
+
+          node test-mailchimp.mjs
