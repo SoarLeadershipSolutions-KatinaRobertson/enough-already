@@ -1,0 +1,91 @@
+name: Update registration links
+
+on:
+  push:
+    paths:
+      - '.github/workflows/update-registration-links.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Replace registration buttons with hosted Mailchimp form links
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          url = 'https://mailchi.mp/katinachristmasrobertson/enoughalreadysignup'
+
+          pattern = re.compile(
+              r'<button class="([^"]*\bjs-register\b[^"]*)" type="button">(.*?)</button>',
+              re.DOTALL,
+          )
+
+          def convert(match):
+              classes = ' '.join(
+                  cls for cls in match.group(1).split() if cls != 'js-register'
+              )
+              return f'<a class="{classes}" href="{url}">{match.group(2)}</a>'
+
+          text, button_count = pattern.subn(convert, text)
+          if button_count != 8:
+              raise SystemExit(f'Expected 8 registration buttons; converted {button_count}.')
+
+          old_offer = '"url": "https://soarleadershipsolutions-katinarobertson.github.io/enough-already/#register"'
+          new_offer = f'"url": "{url}"'
+          if text.count(old_offer) != 1:
+              raise SystemExit('Could not uniquely locate the structured-data registration URL.')
+          text = text.replace(old_offer, new_offer)
+
+          old_help = 'Complete the Mailchimp registration form that appears on this page to reserve your seat.'
+          new_help = 'Use the registration form to reserve your free seat.'
+          if text.count(old_help) != 1:
+              raise SystemExit('Could not uniquely locate the hero registration helper copy.')
+          text = text.replace(old_help, new_help)
+
+          if 'js-register' in text:
+              raise SystemExit('A js-register hook remains in index.html.')
+          if text.count(url) != 9:
+              raise SystemExit(f'Expected 9 hosted-form URLs; found {text.count(url)}.')
+          if 'chimpstatic.com/mcjs-connected' not in text:
+              raise SystemExit('Mailchimp popup script is missing; refusing to commit.')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify the updated page
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(grep -o 'https://mailchi.mp/katinachristmasrobertson/enoughalreadysignup' index.html | wc -l)" -eq 9
+          test "$(grep -c 'js-register' index.html || true)" -eq 0
+          grep -q 'chimpstatic.com/mcjs-connected' index.html
+          grep -q 'September 16, 2026' index.html
+          grep -q 'Completely Free' index.html
+
+      - name: Commit and push the landing-page update
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- index.html; then
+            echo 'No landing-page changes were needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Link registration buttons to hosted Mailchimp form'
+          git push
