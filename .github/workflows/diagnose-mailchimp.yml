@@ -1,0 +1,42 @@
+name: Diagnose Mailchimp integration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/diagnose-mailchimp.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live page and Mailchimp script
+        shell: bash
+        run: |
+          set -euo pipefail
+          SITE='https://soarleadershipsolutions-katinarobertson.github.io/enough-already/'
+          MC='https://chimpstatic.com/mcjs-connected/js/users/34174a1bd11cad56c974a1920/847bde1919ae7937546a3d4d7.js'
+
+          echo '=== LIVE PAGE HEADERS ==='
+          curl -sSIL "$SITE" | sed -n '1,80p'
+
+          echo '=== MAILCHIMP SCRIPT HEADERS ==='
+          curl -sSIL "$MC" | sed -n '1,100p'
+
+          echo '=== MAILCHIMP SCRIPT STATUS / SIZE ==='
+          curl -sSL -D /tmp/mc.headers "$MC" -o /tmp/mc.js
+          wc -c /tmp/mc.js
+          sed -n '1,80p' /tmp/mc.headers
+
+          echo '=== MAILCHIMP SCRIPT FIRST 5000 CHARS ==='
+          head -c 5000 /tmp/mc.js
+          echo
+
+          echo '=== URLS FOUND IN MAILCHIMP SCRIPT ==='
+          grep -Eo 'https?://[^"[:space:]]+' /tmp/mc.js | sort -u | head -100 || true
+
+          echo '=== KEYWORDS FOUND IN MAILCHIMP SCRIPT ==='
+          grep -Eoi '.{0,120}(list-manage|subscribe|popup|form|audience|campaign|mcjs|chimpstatic).{0,180}' /tmp/mc.js | head -100 || true
