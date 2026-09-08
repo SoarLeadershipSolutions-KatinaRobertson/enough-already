@@ -1,0 +1,68 @@
+name: Change event date to September 17
+
+on:
+  push:
+    paths:
+      - '.github/workflows/change-event-date.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  change-date:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Change only the event date
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          original = text
+
+          replacements = (
+              ('September 16, 2026', 'September 17, 2026'),
+              ('September 16', 'September 17'),
+              ('2026-09-16', '2026-09-17'),
+          )
+
+          total = 0
+          for old, new in replacements:
+              count = text.count(old)
+              total += count
+              text = text.replace(old, new)
+              print(f'{old!r} -> {new!r}: {count} replacement(s)')
+
+          if text == original or total == 0:
+              raise SystemExit('No September 16 date references were found to update.')
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Verify no other site files changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --name-only)" = "index.html"
+          ! grep -q 'September 16' index.html
+          ! grep -q '2026-09-16' index.html
+          grep -q 'September 17, 2026' index.html
+          grep -q '2026-09-17T10:00:00-04:00' index.html
+          grep -q '2026-09-17T13:00:00-04:00' index.html
+
+      - name: Commit and deploy the date correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Change event date to September 17'
+          git push
